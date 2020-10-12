@@ -14,57 +14,67 @@ def desugar(raw):
     for the name, and all remaining elements are for the value. The value queries
     are all "or'd", and the result is "anded" with the name query.
 
-    We convert each query into a python function and optimize some special cases.
+    We convert the raw query into a python function, optimizing special cases.
     """
     def desugar_name(query):
-        # None means match everything. If you want to match literal None, use eq(None).
         if query is None:
+            # None means match everything. If you want to match literal None, use eq(None).
             def predicate(node):
                 return True
         elif isinstance(query, Boolean):
+            # It's some Boolean expression. Compile it to a regular function.
             f = query.to_pyfunc()
 
             def predicate(node):
                 return f(node._name)
         elif callable(query):
+            # It's a lambda or regular predicate function
             def predicate(node):
                 return query(node._name)
         else:
+            # It's some primitive like a string or number.
             def predicate(node):
                 return node._name == query
         return predicate
 
     def desugar_value(query):
-        # None means match everything. If you want to match literal None, use eq(None).
         if query is None:
+            # None means match everything. If you want to match literal None, use eq(None).
             def predicate(node):
                 return True
         elif isinstance(query, Boolean):
+            # It's some Boolean expression. Compile it to a regular function.
             f = query.to_pyfunc()
 
             def predicate(node):
                 return any(f(v) for v in node._value)
         elif callable(query):
+            # It's a lambda or regular predicate function
             def predicate(node):
                 return any(query(v) for v in node._value)
         else:
+            # It's some primitive like a string or number.
             def predicate(node):
                 return any(query == v for v in node._value)
         return predicate
 
     if not isinstance(raw, tuple):
+        # If the query isn't a tuple, we're just working on the name.
         predicate = desugar_name(raw)
     else:
+        # It's a tuple, so there's a name query and at least one value query.
         namep = raw[0]
         valp = [desugar_value(q) for q in raw[1:]]
-        if namep is not None:
+        if namep is None:
+            # if the name query is None, that means all names are accepted. We
+            # don't even have to test them.
+            def predicate(node):
+                return any(p(node) for p in valp)
+        else:
             namep = desugar_name(namep)
 
             def predicate(node):
                 return namep(node) and any(p(node) for p in valp)
-        else:
-            def predicate(node):
-                return any(p(node) for p in valp)
 
     return predicate
 
@@ -135,7 +145,7 @@ class Queryable(object):
             # it's a lambda
             for c in self._children:
                 try:
-                    # given lambdas the Queryable API for each node.
+                    # give lambdas the Queryable API for each node.
                     if query(Queryable([c])):
                         res.append(c)
                 except:
@@ -268,17 +278,20 @@ class Queryable(object):
         return contents
 
 
-def q(name, value=None):
+def make_where_query(name, value=None):
     predicate = desugar(name) if value is None else desugar((name, value))
 
-    # Optimization: where predicates are just regular predicates applied
-    # to all children to see if the parent should be kept. The "where" function
-    # will handle passing the children instead of the usual node by node querying
-    # of grandchildren.
+    # Optimization: where queries are regular predicates applied to all of a
+    # nodes's children to see if it should be kept. Queryable.where passes the
+    # children instead of the individual grandchildren like in Queryable.query.
     def inner(nodes):
         return any(predicate(n) for n in nodes)
 
     return Predicate(inner)
+
+
+# typical alias
+q = make_where_query
 
 
 # Optimization: use tuples instead of lists for values and children.
