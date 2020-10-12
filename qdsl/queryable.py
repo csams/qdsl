@@ -6,7 +6,7 @@ from qdsl.tree import Branch, Leaf, flatten
 from qdsl.boolean import Boolean, Predicate
 
 
-# Optimization: Special case common predicates usages.
+# Optimization: Special case queries where possible.
 def desugar(raw):
     """
     Queries have two parts, both optional: a name query and one or more value
@@ -17,6 +17,7 @@ def desugar(raw):
     We convert each query into a python function and optimize some special cases.
     """
     def desugar_name(query):
+        # None means match everything. If you want to match literal None, use eq(None).
         if query is None:
             def predicate(node):
                 return True
@@ -26,13 +27,15 @@ def desugar(raw):
             def predicate(node):
                 return f(node._name)
         elif callable(query):
-            predicate = query
+            def predicate(node):
+                return query(node._name)
         else:
             def predicate(node):
                 return node._name == query
         return predicate
 
     def desugar_value(query):
+        # None means match everything. If you want to match literal None, use eq(None).
         if query is None:
             def predicate(node):
                 return True
@@ -42,7 +45,8 @@ def desugar(raw):
             def predicate(node):
                 return any(f(v) for v in node._value)
         elif callable(query):
-            predicate = query
+            def predicate(node):
+                return any(query(v) for v in node._value)
         else:
             def predicate(node):
                 return any(query == v for v in node._value)
@@ -57,10 +61,10 @@ def desugar(raw):
             namep = desugar_name(namep)
 
             def predicate(node):
-                return namep(node) and any((p(node) for p in valp))
+                return namep(node) and any(p(node) for p in valp)
         else:
             def predicate(node):
-                return any((p(node) for p in valp))
+                return any(p(node) for p in valp)
 
     return predicate
 
@@ -258,9 +262,10 @@ class Queryable(object):
     def __repr__(self):
         out = StringIO()
         for c in self._children:
-            print(repr(c), file=out)
-        out.seek(0)
-        return out.read()
+            out.write(repr(c))
+        contents = out.getvalue()
+        out.close()
+        return contents
 
 
 def q(name, value=None):
