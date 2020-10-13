@@ -13,6 +13,7 @@ log = logging.getLogger(__name__)
 
 __all__ = [
     "pred",
+    "pred2",
     "flip",
     "TRUE",
     "FALSE",
@@ -132,7 +133,10 @@ class Predicate(Boolean):
             return False
 
 
-def pred(predicate, *args, **kwargs):
+pred = Predicate
+
+
+def pred2(predicate, *args, **kwargs):
     return partial(Predicate, predicate)
 
 
@@ -162,16 +166,16 @@ class FALSE(Boolean):
 TRUE = TRUE()
 FALSE = FALSE()
 
-lt = pred(operator.lt)
-le = pred(operator.le)
-eq = pred(operator.eq)
-ge = pred(operator.ge)
-gt = pred(operator.gt)
+lt = pred2(operator.lt)
+le = pred2(operator.le)
+eq = pred2(operator.eq)
+ge = pred2(operator.ge)
+gt = pred2(operator.gt)
 
-isin = pred(flip(operator.contains))
+isin = pred2(flip(operator.contains))
 
-contains = pred(operator.contains)
-search = pred(flip(re.search))
+contains = pred2(operator.contains)
+search = pred2(flip(re.search))
 matches = search
-startswith = pred(str.startswith)
-endswith = pred(str.endswith)
+startswith = pred2(str.startswith)
+endswith = pred2(str.endswith)

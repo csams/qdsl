@@ -3,7 +3,9 @@ from io import StringIO
 from itertools import chain
 
 from qdsl.tree import Branch, Leaf, flatten
-from qdsl.boolean import Boolean, Predicate
+from qdsl.boolean import Boolean, pred
+
+ANY = None
 
 
 # Optimization: Special case queries where possible.
@@ -179,6 +181,38 @@ class Queryable(object):
 
         return Queryable(res)
 
+    def select(self, selector):
+        """
+        Pass a lambda. It'll be given a Queryable of each node and should
+        return a tuple of query results.
+
+        Examples:
+
+            # perform some query.
+            bad = conf.status[endswith("Statuses")].where(q("restartCount", gt(2)) & q("ready", False))
+
+            # select the name, podIP from the status, restartCount, and terminated message.
+            results = bad.select(lambda b: (b.name, b.upto("status").podIP, b.restartCount, b.lastState.terminated.message))
+
+            # you also can nest selects, and their results will be flattened.
+            # this selects name and restartCount as well as the exitCode and message from lastState.terminated.
+            results = bad.select(lambda s: (s.name, s.restartCount, s.lastState.terminated.select(lambda t: (t.exitCode, t.message))))
+        """
+        results = []
+        for c in self._children:
+            res = selector(Queryable([c]))
+            res = res if isinstance(res, (list, tuple)) else (res,)
+            tmp = []
+            for r in res:
+                for i in r._children:
+                    if i._name is None:
+                        tmp.extend(i._children)
+                    else:
+                        tmp.append(i)
+            if tmp:
+                results.append(Branch(children=tmp, set_parents=False))
+        return Queryable(results)
+
     def get_crumbs(self):
         res = []
         seen = set()
@@ -223,6 +257,25 @@ class Queryable(object):
 
     def _values(self):
         return chain.from_iterable(c._value for c in self._children)
+
+    def _get_nodes_of_type(self, Kind):
+        res = []
+        for node in self._children:
+            try:
+                for c in node._children:
+                    if isinstance(c, Kind):
+                        res.append(c)
+            except:
+                pass
+        return Queryable(res)
+
+    @property
+    def branches(self):
+        return self._get_nodes_of_type(Branch)
+
+    @property
+    def leaves(self):
+        return self._get_nodes_of_type(Leaf)
 
     @property
     def value(self):
@@ -290,7 +343,7 @@ def make_where_query(name, value=None):
     def inner(nodes):
         return any(predicate(n) for n in nodes)
 
-    return Predicate(inner)
+    return pred(inner)
 
 
 # typical alias
@@ -332,4 +385,4 @@ def to_queryable(raw):
 
         return results
 
-    return Queryable([Branch(children=tuple(convert(raw)))])
+    return Queryable([Branch(name="root", children=tuple(convert(raw)))])

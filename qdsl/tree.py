@@ -48,11 +48,12 @@ class Branch(Tree):
 
     # Optimization: "value" defaults to an empty tuple. Since it's a
     # default keyword value, they'll all share the same one.
-    def __init__(self, name=None, value=(), children=None):
+    def __init__(self, name=None, value=(), children=None, set_parents=True):
         super().__init__(name, value)
         self._children = children if children is not None else ()
-        for c in self._children:
-            c._parent = self
+        if set_parents:
+            for c in self._children:
+                c._parent = self
 
 
 class Leaf(Tree):
