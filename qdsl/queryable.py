@@ -213,7 +213,7 @@ class Queryable(object):
                 results.append(Branch(children=tmp, set_parents=False))
         return Queryable(results)
 
-    def get_crumbs(self):
+    def crumbs(self):
         res = []
         seen = set()
         for c in self._children:
