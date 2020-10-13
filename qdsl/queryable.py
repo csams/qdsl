@@ -118,11 +118,14 @@ class Queryable(object):
         results = []
         seen = set()
         for parent in self._children:
-            for c in parent._children:
-                name = c._name
-                if name not in seen:
-                    seen.add(name)
-                    results.append(name)
+            try:
+                for c in parent._children:
+                    name = c._name
+                    if name not in seen:
+                        seen.add(name)
+                        results.append(name)
+            except:
+                pass
         return sorted(results)
 
     def find(self, *queries):
