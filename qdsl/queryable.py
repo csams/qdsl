@@ -181,10 +181,19 @@ class Queryable(object):
 
         return Queryable(res)
 
+    def order_by(self, selector, reverse=False):
+        def predicate(node):
+            res = selector(node)
+            if isinstance(res, (list, tuple)):
+                return [r.values for r in res]
+            return res.values
+
+        return Queryable(sorted(self, key=predicate, reverse=reverse))
+
     def select(self, selector):
         """
-        Pass a lambda. It'll be given a Queryable of each node and should
-        return a tuple of query results.
+        Pass a lambda or function. It'll be given a Queryable of each node
+        and should return a tuple of query results.
 
         Examples:
 
@@ -204,11 +213,22 @@ class Queryable(object):
             res = res if isinstance(res, (list, tuple)) else (res,)
             tmp = []
             for r in res:
-                for i in r._children:
-                    if i._name is None:
-                        tmp.extend(i._children)
-                    else:
-                        tmp.append(i)
+                if isinstance(r, dict):
+                    for k, v in r.items():
+                        for i in v._children:
+                            if i._name is None:
+                                tmp.extend(i._children)
+                            else:
+                                if isinstance(i, Branch):
+                                    tmp.append(Branch(k, i._value, i._children, set_parents=False))
+                                else:
+                                    tmp.append(Leaf(k, i._value))
+                else:
+                    for i in r._children:
+                        if i._name is None:
+                            tmp.extend(i._children)
+                        else:
+                            tmp.append(i)
             if tmp:
                 results.append(Branch(children=tmp, set_parents=False))
         return Queryable(results)
@@ -325,6 +345,9 @@ class Queryable(object):
     def __dir__(self):
         return self.keys()
 
+    def _ipython_key_completions_(self):
+        return self.keys()
+
     def __repr__(self):
         out = StringIO()
         for c in self._children:
@@ -385,4 +408,4 @@ def to_queryable(raw):
 
         return results
 
-    return Queryable([Branch(name="root", children=tuple(convert(raw)))])
+    return Queryable([Branch(name="conf", children=tuple(convert(raw)))])
