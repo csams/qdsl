@@ -233,9 +233,8 @@ class Queryable(object):
                 results.append(Branch(children=tmp, set_parents=False))
         return Queryable(results)
 
-    def crumbs(self):
-        res = []
-        seen = set()
+    def _crumbs_up(self):
+        res = set()
         for c in self._children:
             segments = []
             cur = c
@@ -244,11 +243,38 @@ class Queryable(object):
                 if name is not None:
                     segments.append(name)
                 cur = cur._parent
-            path = ".".join(reversed(segments))
-            if path not in seen:
-                seen.add(path)
-                res.append(path)
+            segments = [(s + ".") if s.isidentifier() else '["{}"]'.format(s) for s in segments]
+            path = "".join(reversed(segments))
+            res.add(path.rstrip("."))
         return sorted(res)
+
+    def _crumbs_down(self):
+        res = set()
+
+        def inner(node, base):
+            try:
+                for c in node._children:
+                    name = c._name or ""
+                    if base:
+                        if not name.isidentifier():
+                            name = '"{}"'.format(name)
+                            path = base + "[" + name + "]"
+                        else:
+                            path = base + "." + name
+                    else:
+                        path = name
+                    inner(c, path)
+            except:
+                res.add(base)
+
+        for c in self._children:
+            inner(c, "")
+        return sorted(res)
+
+    def crumbs(self, down=False):
+        if down:
+            return self._crumbs_down()
+        return self._crumbs_up()
 
     @property
     def parents(self):
