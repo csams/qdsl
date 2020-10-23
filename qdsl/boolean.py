@@ -19,6 +19,7 @@ __all__ = [
     "FALSE",
     "flip",
     "pred",
+    "pred2",
     "lt",
     "le",
     "eq",

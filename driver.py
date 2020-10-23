@@ -7,6 +7,7 @@ import logging
 import operator
 import os
 import re
+import requests
 import yaml
 
 from functools import reduce
@@ -41,19 +42,23 @@ def analyze(paths, ignore=".*(log|txt)$"):
     def load(p):
         if not ignore(p):
             try:
-                with open(p) as f:
-                    doc = yaml.load(f, Loader=Loader)
-                    if isinstance(doc, (list, dict)):
-                        results.append(to_queryable(doc))
+                if p.startswith("http"):
+                    data = requests.get(path).text
+                    doc = yaml.load(data, Loader=Loader)
+                else:
+                    with open(p) as f:
+                        doc = yaml.load(f, Loader=Loader)
+                if isinstance(doc, (list, dict)):
+                    results.append(to_queryable(doc))
             except:
                 pass
 
     for path in paths:
-        if os.path.isfile(path):
-            load(path)
-        elif os.path.isdir(path):
+        if os.path.isdir(path):
             for p in _get_files(path):
                 load(p)
+        else:
+            load(path)
 
     return reduce(operator.add, results, Queryable())
 
