@@ -188,7 +188,10 @@ class Queryable(object):
                 return [r.values for r in res]
             return res.values
 
-        return Queryable(sorted(self, key=predicate, reverse=reverse))
+        res = []
+        for r in sorted(self, key=predicate, reverse=reverse):
+            res.extend(r._children)
+        return Queryable(tuple(res))
 
     def select(self, selector):
         """
