@@ -243,9 +243,18 @@ class Queryable(object):
                 if name is not None:
                     segments.append(name)
                 cur = cur._parent
-            segments = [(s + ".") if s.isidentifier() else '["{}"]'.format(s) for s in segments]
-            path = "".join(reversed(segments))
-            res.add(path.rstrip("."))
+
+            if len(segments) == 0:
+                res.add("")
+            elif len(segments) == 1:
+                res.add(segments[0])
+            else:
+                segments = list(reversed(segments))
+                path = [segments[0]]
+                for r in segments[1:]:
+                    r = "." + r if r.isidentifier() else '["{}"]'.format(r)
+                    path.append(r)
+                res.add("".join(path))
         return sorted(res)
 
     def _crumbs_down(self):
