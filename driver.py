@@ -76,6 +76,7 @@ def main():
 
     IPython.core.completer.Completer.use_jedi = False
     c = Config()
+    c.PlainTextFormatter.max_seq_length = 0
     ns = {}
     ns.update(globals())
     ns["q"] = q
