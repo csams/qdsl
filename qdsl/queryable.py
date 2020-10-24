@@ -2,8 +2,8 @@ from collections import Counter
 from io import StringIO
 from itertools import chain
 
-from qdsl.tree import Branch, Leaf, flatten
 from qdsl.boolean import Boolean, pred
+from qdsl.tree import Branch, Leaf, flatten
 
 ANY = None
 
