@@ -130,3 +130,5 @@ dmypy.json
 
 perf.py
 parse.py
+
+.vscode
