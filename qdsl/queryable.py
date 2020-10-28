@@ -11,12 +11,13 @@ ANY = None
 # Optimization: Special case queries where possible.
 def desugar(raw):
     """
-    Queries have two parts, both optional: a name query and one or more value
-    queries. If there are two parts, they're in a tuple. The first element is
-    for the name, and all remaining elements are for the value. The value queries
-    are all "or'd", and the result is "anded" with the name query.
+    Queries have two sub-queries, at least one of which must exist: a name query
+    and one or more value queries. If there are two parts, they're in a
+    tuple. The first element is the name query, and all remaining elements
+    are value queries. The value queries are all "or'd", and the result is
+    "anded" with the name query.
 
-    We convert the raw query into a python function, optimizing special cases.
+    desugar converts the raw query tuple into a python function, optimizing special cases.
     """
     def desugar_name(query):
         if query is None:
@@ -88,20 +89,20 @@ class Queryable(object):
         self._children = tuple(children or [])
 
     def _run_query(self, query, nodes):
+        """
+        Filters the children list of each node and flattens the result.
+
+        For example, if we start with a set of queryable nodes, cur, then
+        cur[query] should look at the children of _each node_ in cur
+        and collect all of those that match the query.
+        """
         results = []
-        for parent in nodes:
+        for node in nodes:
             try:
-                results.extend(gc for gc in parent._children if query(gc))
+                results.extend(gc for gc in node._children if query(gc))
             except:
                 pass
         return results
-
-    def query(self, query, desugared=False):
-        if not desugared:
-            query = desugar(query)
-
-        results = self._run_query(query, self._children)
-        return Queryable(results)
 
     def __getattr__(self, key):
         return self.__getitem__(key)
@@ -114,9 +115,12 @@ class Queryable(object):
             if isinstance(query, slice):
                 return Queryable(self._children[query])
 
-        return self.query(query)
+        query = desugar(query)
+        results = self._run_query(query, self._children)
+        return Queryable(results)
 
     def keys(self):
+        """ Sorted list of unique names of the current results. """
         results = []
         seen = set()
         for parent in self._children:
@@ -131,6 +135,12 @@ class Queryable(object):
         return sorted(results)
 
     def find(self, *queries):
+        """
+        Search everywhere beneath the current results for matching nodes.
+        Like current_results[q0][q1]... except the set of queries gets
+        applied as if every node everywhere beneath current_results was
+        current_results.
+        """
         res = []
         queries = [desugar(q) for q in queries]
         # Optimization: querying the entire flattened tree at once is equivalent to querying individual nodes.
@@ -143,14 +153,21 @@ class Queryable(object):
                 res.extend(cur)
         return Queryable(res)
 
-    # Optimization: simplify the where API so we don't need a separate WhereBoolean hierarchy.
+    # Optimization: simplify the where API so we don't need a separate
+    # WhereBoolean hierarchy. Where queries must be either a lambda or a
+    # combination of "q(..)" instances.
     def where(self, query):
+        """ Filter the current results based on properties of their children. """
         res = []
         if callable(query):
             # it's a lambda
             for c in self._children:
                 try:
                     # give lambdas the Queryable API for each node.
+                    # Do this manually instead of relying on __iter__ since
+                    # we want to accumulate the original nodes, and this way
+                    # is faster than digging them back out of the Queryables
+                    # __iter__ would return.
                     if query(Queryable([c])):
                         res.append(c)
                 except:
@@ -167,6 +184,7 @@ class Queryable(object):
         return Queryable(res)
 
     def upto(self, query):
+        """ Query up the tree from the current results. """
         query = desugar(query)
         res = []
         seen = set()
@@ -182,6 +200,15 @@ class Queryable(object):
         return Queryable(res)
 
     def order_by(self, selector, reverse=False):
+        """
+        Orders the current result set based on values returned by a lambda.
+
+        Example:
+
+            # get the Config resources and see their conditions ordered by lastUpdateTime
+            cfg = conf.where(q("kind", "Config"))
+            res = cfg.status.conditions.where(q("status", "True")).order_by(lambda c: c.lastUpdateTime)
+        """
         def predicate(node):
             res = selector(node)
             if isinstance(res, (list, tuple)):
@@ -191,7 +218,7 @@ class Queryable(object):
         res = []
         for r in sorted(self, key=predicate, reverse=reverse):
             res.extend(r._children)
-        return Queryable(tuple(res))
+        return Queryable(res)
 
     def select(self, selector):
         """
@@ -284,12 +311,16 @@ class Queryable(object):
         return sorted(res)
 
     def crumbs(self, down=False):
+        """
+        See all paths by name up or down the tree from the current results.
+        """
         if down:
             return self._crumbs_down()
         return self._crumbs_up()
 
     @property
     def parents(self):
+        """ Get unique parent nodes of current results. """
         res = []
         seen = set()
         for c in self._children:
@@ -301,6 +332,7 @@ class Queryable(object):
 
     @property
     def roots(self):
+        """ Get unique root nodes of current results. """
         res = []
         seen = set()
         for c in self._children:
@@ -351,10 +383,10 @@ class Queryable(object):
         return Counter(self._values()).most_common(n)
 
     def to_df(self):
-        """ Convert children to pandas Dataframe. """
+        """Convert children to pandas Dataframe. """
         import pandas as pd
-        res = []
 
+        res = []
         for parent in self._children:
             try:
                 res.append({c._name: c._value[0] for c in parent._children if len(c._value) == 1})
@@ -396,18 +428,20 @@ class Queryable(object):
 
 
 def make_where_query(name, value=None):
-    predicate = desugar(name) if value is None else desugar((name, value))
+    query = name if value is None else (name, value)
+    predicate = desugar(query)
 
     # Optimization: where queries are regular predicates applied to all of a
     # nodes's children to see if it should be kept. Queryable.where passes the
-    # children instead of the individual grandchildren like in Queryable.query.
+    # list of children instead of the individual grandchildren like in
+    # Queryable.query.
     def inner(nodes):
         return any(predicate(n) for n in nodes)
 
     return pred(inner)
 
 
-# typical alias
+# typical alias for creating where queries.
 q = make_where_query
 
 
@@ -415,11 +449,11 @@ q = make_where_query
 def to_queryable(raw):
     """
     Generic data is made of dictionaries, lists, and primitives. Assume lists
-    contain only dictionaries or primitives. If the value side of a dict key is a
-    list and the list is full of primitives, a Leaf is generated with the list as
-    its value. If the list contains dicts, a Branch is generated for each one,
-    and each Branch is named by the original key. Nested lists are recursively
-    flattened.
+    contain only dictionaries or primitives. If the value side of a dict key
+    is a list and the list is full of primitives, a Leaf is generated with
+    the dict key as its name and the list as its value. If the list contains
+    dicts, a Branch is generated for each one, and each Branch is named by
+    the original dict key. Nested lists are recursively flattened.
     """
     def convert(data):
         results = []
