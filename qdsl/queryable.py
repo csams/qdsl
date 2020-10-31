@@ -5,6 +5,8 @@ from itertools import chain
 from qdsl.boolean import Boolean, pred
 from qdsl.tree import Branch, Leaf, flatten
 
+# This is None for backward compat with a different lib.
+# Ideally it would be ANY = object()
 ANY = None
 
 
@@ -446,7 +448,7 @@ q = make_where_query
 
 
 # Optimization: use tuples instead of lists for values and children.
-def to_queryable(raw):
+def to_queryable(raw, root_name="conf"):
     """
     Generic data is made of dictionaries, lists, and primitives. Assume lists
     contain only dictionaries or primitives. If the value side of a dict key
@@ -480,4 +482,4 @@ def to_queryable(raw):
 
         return results
 
-    return Queryable([Branch(name="conf", children=tuple(convert(raw)))])
+    return Queryable([Branch(name=root_name, children=tuple(convert(raw)))])
