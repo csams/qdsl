@@ -6,24 +6,25 @@ from qdsl.boolean import Boolean, pred
 from qdsl.tree import Branch, Leaf, flatten
 
 # This is None for backward compat with a different lib.
-# Ideally it would be ANY = object()
-ANY = None
+# Ideally it would be ALL = object()
+ALL = None
 
 
 # Optimization: Special case queries where possible.
-def desugar(raw):
+def _desugar(raw):
     """
-    Queries have two sub-queries, at least one of which must exist: a name query
-    and one or more value queries. If there are two parts, they're in a
-    tuple. The first element is the name query, and all remaining elements
-    are value queries. The value queries are all "or'd", and the result is
-    "anded" with the name query.
+    _desugar converts the raw query tuple into a regular function from Tree to
+    Bool, optimizing special cases.
 
-    desugar converts the raw query tuple into a python function, optimizing special cases.
+    Raw queries have two sub-queries, at least one of which must exist: a
+    name query and one or more value queries. If there are two parts, they're
+    in a tuple. The first element is the name query, and all remaining
+    elements are value queries. The value queries are all "or'd", and the
+    result is "anded" with the name query.
     """
     def desugar_name(query):
-        if query is None:
-            # None means match everything. If you want to match literal None, use eq(None).
+        if query is ALL:
+            # Means match everything. If you want to match literal None, use eq(None).
             def predicate(node):
                 return True
         elif isinstance(query, Boolean):
@@ -43,7 +44,7 @@ def desugar(raw):
         return predicate
 
     def desugar_value(query):
-        if query is None:
+        if query is ALL:
             # None means match everything. If you want to match literal None, use eq(None).
             def predicate(node):
                 return True
@@ -63,6 +64,7 @@ def desugar(raw):
                 return any(query == v for v in node._value)
         return predicate
 
+    # Here's is the main desugaring logic.
     if not isinstance(raw, tuple):
         # If the query isn't a tuple, we're just working on the name.
         predicate = desugar_name(raw)
@@ -70,8 +72,8 @@ def desugar(raw):
         # It's a tuple, so there's a name query and at least one value query.
         namep = raw[0]
         valp = [desugar_value(q) for q in raw[1:]]
-        if namep is None:
-            # if the name query is None, that means all names are accepted. We
+        if namep is ALL:
+            # if the name query is ALL, that means all names are accepted. We
             # don't even have to test them.
             def predicate(node):
                 return any(p(node) for p in valp)
@@ -117,7 +119,7 @@ class Queryable(object):
             if isinstance(query, slice):
                 return Queryable(self._children[query])
 
-        query = desugar(query)
+        query = _desugar(query)
         results = self._run_query(query, self._children)
         return Queryable(results)
 
@@ -144,7 +146,7 @@ class Queryable(object):
         current_results.
         """
         res = []
-        queries = [desugar(q) for q in queries]
+        queries = [_desugar(q) for q in queries]
         # Optimization: querying the entire flattened tree at once is equivalent to querying individual nodes.
         for c in self._children:
             cur = list(flatten(c))
@@ -187,7 +189,7 @@ class Queryable(object):
 
     def upto(self, query):
         """ Query up the tree from the current results. """
-        query = desugar(query)
+        query = _desugar(query)
         res = []
         seen = set()
         for c in self._children:
@@ -431,7 +433,7 @@ class Queryable(object):
 
 def make_where_query(name, value=None):
     query = name if value is None else (name, value)
-    predicate = desugar(query)
+    predicate = _desugar(query)
 
     # Optimization: where queries are regular predicates applied to all of a
     # nodes's children to see if it should be kept. Queryable.where passes the
@@ -465,7 +467,7 @@ def to_queryable(raw, root_name="conf"):
                     results.append(Branch(k, children=tuple(convert(v))))
                 elif isinstance(v, list):
                     if v:
-                        # Assume all list values have the same type (list, dict, or primitive).
+                        # Assume all list values have the same shape (list, dict, or primitive).
                         if isinstance(v[0], (list, dict)):
                             for i in v:
                                 results.append(Branch(k, children=tuple(convert(i))))
