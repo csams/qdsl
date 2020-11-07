@@ -43,13 +43,13 @@ def analyze(paths, ignore=".*(log|txt)$"):
         if not ignore(p):
             try:
                 if p.startswith("http"):
-                    data = requests.get(path).text
+                    data = requests.get(p).text
                     doc = yaml.load(data, Loader=Loader)
                 else:
                     with open(p) as f:
                         doc = yaml.load(f, Loader=Loader)
                 if isinstance(doc, (list, dict)):
-                    results.append(to_queryable(doc))
+                    results.append(to_queryable(doc, source=p))
             except:
                 pass
 

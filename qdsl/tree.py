@@ -11,13 +11,26 @@ except:
 
 class Tree(object):
     # Optimization: use slots
-    __slots__ = ["_name", "_value", "_parent"]
+    __slots__ = ["_name", "_value", "_parent", "_source"]
 
-    def __init__(self, name, value):
+    def __init__(self, name, value, source=None):
         # Optimization: intern node names
         self._name = intern(name) if name is not None else name
         self._value = value
         self._parent = None
+
+        # an object (eg filename, url, etc.) to set as the "source" of this
+        # tree.
+        self._source = source
+
+    @property
+    def source(self):
+        cur = self
+        while cur is not None:
+            src = cur._source
+            if src is not None:
+                return src
+            cur = cur._parent
 
     def __repr__(self):
         out = StringIO()
@@ -48,8 +61,8 @@ class Branch(Tree):
 
     # Optimization: "value" defaults to an empty tuple. Since it's a
     # default keyword value, they'll all share the same one.
-    def __init__(self, name=None, value=(), children=None, set_parents=True):
-        super().__init__(name, value)
+    def __init__(self, name=None, value=(), children=None, set_parents=True, **kwargs):
+        super().__init__(name, value, **kwargs)
         self._children = children if children is not None else ()
         if set_parents:
             for c in self._children:
@@ -57,8 +70,8 @@ class Branch(Tree):
 
 
 class Leaf(Tree):
-    def __init__(self, name=None, value=None):
-        super().__init__(name, value)
+    def __init__(self, name=None, value=None, **kwargs):
+        super().__init__(name, value, **kwargs)
 
 
 def flatten(node):

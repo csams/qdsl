@@ -335,6 +335,13 @@ class Queryable(object):
         return Queryable(res)
 
     @property
+    def sources(self):
+        seen = set()
+        for c in self._children:
+            seen.add(c.source)
+        return sorted(seen)
+
+    @property
     def roots(self):
         """ Get unique root nodes of current results. """
         res = []
@@ -450,7 +457,7 @@ q = make_where_query
 
 
 # Optimization: use tuples instead of lists for values and children.
-def to_queryable(raw, root_name="conf"):
+def to_queryable(raw, root_name="conf", source=None):
     """
     Generic data is made of dictionaries, lists, and primitives. Assume lists
     contain only dictionaries or primitives. If the value side of a dict key
@@ -484,4 +491,4 @@ def to_queryable(raw, root_name="conf"):
 
         return results
 
-    return Queryable([Branch(name=root_name, children=tuple(convert(raw)))])
+    return Queryable([Branch(name=root_name, children=tuple(convert(raw)), source=source)])
