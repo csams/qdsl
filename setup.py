@@ -4,6 +4,12 @@ from setuptools import setup, find_packages
 here = os.path.abspath(os.path.dirname(__file__))
 
 
+entry_points = {
+    "console_scripts": [
+        "qry = qdsl.__main__:main"
+    ]
+}
+
 runtime = set([
     "pyyaml",
 ])
@@ -62,5 +68,6 @@ if __name__ == "__main__":
             "Programming Language :: Python :: 3.7",
             "Programming Language :: Python :: 3.8"
         ],
-        include_package_data=True
+        include_package_data=True,
+        entry_points=entry_points
     )
