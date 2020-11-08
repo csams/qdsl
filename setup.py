@@ -11,7 +11,10 @@ entry_points = {
 }
 
 runtime = set([
+    "IPython",
+    "pandas",
     "pyyaml",
+    "requests",
 ])
 
 develop = set([
@@ -20,20 +23,11 @@ develop = set([
     "pytest",
     "pytest-cov",
     "setuptools",
+    "Sphinx",
+    "sphinx_rtd_theme",
     "twine",
     "wheel",
 ])
-
-docs = set([
-    "Sphinx",
-    "sphinx_rtd_theme",
-])
-
-optional = set([
-    "IPython",
-    "pandas",
-])
-
 
 if __name__ == "__main__":
     with open(os.path.join(here, "README.md")) as f:
@@ -53,9 +47,7 @@ if __name__ == "__main__":
         package_data={"": ["LICENSE"]},
         license="Apache 2.0",
         extras_require={
-            "develop": list(develop | docs | optional),
-            "docs": list(docs),
-            "optional": list(optional),
+            "develop": list(develop),
         },
         classifiers=[
             "Development Status :: 3 - Alpha",
