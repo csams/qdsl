@@ -249,14 +249,17 @@ class Queryable(object):
             for r in res:
                 if isinstance(r, dict):
                     for k, v in r.items():
-                        for i in v._children:
-                            if i._name is None:
-                                tmp.extend(i._children)
-                            else:
-                                if isinstance(i, Branch):
-                                    tmp.append(Branch(k, i._value, i._children, set_parents=False))
+                        try:
+                            for i in v._children:
+                                if i._name is None:
+                                    tmp.extend(i._children)
                                 else:
-                                    tmp.append(Leaf(k, i._value))
+                                    if isinstance(i, Branch):
+                                        tmp.append(Branch(k, i._value, i._children, set_parents=False))
+                                    else:
+                                        tmp.append(Leaf(k, i._value))
+                        except:
+                            tmp.append(Leaf(k, (v,)))
                 else:
                     for i in r._children:
                         if i._name is None:
