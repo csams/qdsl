@@ -41,7 +41,7 @@ if __name__ == "__main__":
         long_description_content_type="text/markdown",
         url="https://github.com/csams/qdsl",
         author="Christopher Sams",
-        author_email="csams@gmail.com",
+        author_email="cwsams@gmail.com",
         packages=find_packages(),
         install_requires=list(runtime),
         package_data={"": ["LICENSE"]},
