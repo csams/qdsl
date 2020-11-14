@@ -1,4 +1,4 @@
-from collections import Counter
+from collections import Counter, defaultdict
 from io import StringIO
 from itertools import chain
 
@@ -419,6 +419,44 @@ class Queryable(object):
 
     def __add__(self, other):
         return Queryable(self._children + other._children)
+
+    def _sub(self, other):
+        res = []
+        if not other:
+            return self
+
+        left = defaultdict(list)
+        for c in self._children:
+            left[(c._name, c._value)].append(c)
+
+        right = defaultdict(list)
+        for c in other._children:
+            right[(c._name, c._value)].append(c)
+
+        for key in left.keys() - right.keys():
+            res.extend(left[key])
+
+        overlap = left.keys() & right.keys()
+        for key in overlap:
+            for l in left[key]:
+                diffs = []
+                for r in right[key]:
+                    try:
+                        diff = Queryable(l._children)._sub(Queryable(r._children))
+                        diffs.append(diff)
+                        if not diff:
+                            break
+                    except:
+                        pass
+                try:
+                    res.extend(sorted(diffs, key=len)[0])
+                except:
+                    pass
+        return res
+
+    def __sub__(self, other):
+        res = self._sub(other)
+        return Queryable([Branch(children=res, set_parents=False)])
 
     def __bool__(self):
         return bool(self._children)

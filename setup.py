@@ -6,7 +6,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 entry_points = {
     "console_scripts": [
-        "qry = qdsl.__main__:main"
+        "qry = qdsl.cli:main"
     ]
 }
 
@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     setup(
         name="qdsl",
-        version="0.1.0",
+        version="0.2.0",
         description="qdsl takes the tedium out of nested dicts and lists.",
         long_description=long_description,
         long_description_content_type="text/markdown",
