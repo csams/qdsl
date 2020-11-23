@@ -308,7 +308,11 @@ class Queryable(object):
                         else:
                             path = base + "." + name
                     else:
-                        path = name
+                        if not name.isidentifier():
+                            name = '"{}"'.format(name)
+                            path = "[" + name + "]"
+                        else:
+                            path = name
                     inner(c, path)
             except:
                 res.add(base)
