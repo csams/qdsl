@@ -35,7 +35,7 @@ if __name__ == "__main__":
 
     setup(
         name="qdsl",
-        version="0.2.2",
+        version="0.2.3",
         description="qdsl takes the tedium out of nested dicts and lists.",
         long_description=long_description,
         long_description_content_type="text/markdown",

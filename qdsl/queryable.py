@@ -520,9 +520,13 @@ def to_queryable(raw, root_name="conf", source=None):
                 elif isinstance(v, list):
                     if v:
                         # Assume all list values have the same shape (list, dict, or primitive).
-                        if isinstance(v[0], (list, dict)):
+                        v0 = v[0]
+                        if isinstance(v0, dict):
                             for i in v:
                                 results.append(Branch(k, children=tuple(convert(i))))
+                        elif isinstance(v0, list):
+                            for i in v:
+                                results.append(Leaf(k, tuple(i)))
                         else:
                             results.append(Leaf(k, tuple(v)))
                 else:
@@ -536,4 +540,5 @@ def to_queryable(raw, root_name="conf", source=None):
 
         return results
 
-    return Queryable([Branch(name=root_name, children=tuple(convert(raw)), source=source)])
+    children = tuple(convert(raw))
+    return Queryable([Branch(name=root_name, children=children, source=source)])
