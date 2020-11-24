@@ -19,7 +19,7 @@ class Tree(object):
     def __init__(self, name, value, source=None):
         # Optimization: intern node names. This is especially effective
         # for k8s/openshift resources.
-        self._name = intern(name) if isinstance(name, str) else name
+        self._name = intern(str(name)) if name is not None else name
         self._value = value
         self._parent = None
         self._source = source

@@ -300,7 +300,7 @@ class Queryable(object):
         def inner(node, base):
             try:
                 for c in node._children:
-                    name = c._name or ""
+                    name = str(c._name) or ""
                     if base:
                         if not name.isidentifier():
                             name = '"{}"'.format(name)
@@ -325,9 +325,7 @@ class Queryable(object):
         """
         See all paths by name up or down the tree from the current results.
         """
-        if down:
-            return self._crumbs_down()
-        return self._crumbs_up()
+        return self._crumbs_down() if down else self._crumbs_up()
 
     @property
     def parents(self):
